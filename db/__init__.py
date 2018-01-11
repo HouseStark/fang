@@ -4,8 +4,11 @@ import logging.config
 sys.path.append('..')
 from utils.Row import Row
 
-logging.config.fileConfig("../conf/logging.conf")
+#import os
+#print(os.getcwd())
 
+#logging.config.fileConfig("../conf/logging.conf")
+logging.config.fileConfig("conf/logging.conf")
 
 class db(object):
 

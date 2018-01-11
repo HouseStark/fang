@@ -1,7 +1,10 @@
 import requests
+import re
 import os
 import time
 import db
+
+from pymysql.err import IntegrityError
 
 #URL = 'http://210.75.213.188/shh/portal/bjjs2016/list.aspx'
 URL = "http://210.75.213.188/shh/portal/bjjs2016/list.aspx?pagenumber={page}&pagesize=7"
@@ -24,8 +27,8 @@ PAYLOAD = {"district_id":'', "plot":'', "sell_money_from":"", "sell_money_to":""
          "audit_on":"",}
 
 PAGE_S=1
-PAGE_E=3025+1
-
+PAGE_E=4000+1
+try_num = 7
 _DIR=os.path.dirname(os.path.realpath(__file__))
 
 
@@ -38,7 +41,7 @@ dt = time.strftime("%Y%m%d",time_local)
 if not os.path.exists(os.path.join(_DIR,dt)):
     os.mkdir(os.path.join(_DIR,dt))
 
-dbinfo={host:'127.0.0.1', user:'root', passwd:'123', db:'data', port:3306, charset:'utf8'}
+dbinfo={'host':'127.0.0.1', 'user':'root', 'passwd':'123', 'db':'data', 'port':3306, 'charset':'utf8'}
 
 conn=db.Connection(**dbinfo)
 
@@ -54,28 +57,36 @@ for page in range(PAGE_S,PAGE_E):
     if len(r.text)==0:
         print(len(r.text))    
         print("error:page:{},done".format(page))
-
-
         continue
 
-    with open(os.path.join(_DIR,dt,"{}.html".format(page)), 'wb') as fd:
-        for chunk in r.iter_content(4096):
-            fd.write(chunk)    
+#    with open(os.path.join(_DIR,dt,"{}.html".format(page)), 'wb') as fd:
+#        for chunk in r.iter_content(4096):
+#            fd.write(chunk)    
+    if 'audit_house_detail' not in r.text:
+        break
+
+    original_html={"html":r.text, "date":dt, "url":URL.format(page=page)}
+    conn.insert('html_archive_fang', **original_html) 
+
     print("page:{},done".format(page))
 
     pattern=re.compile(r'<tr>\s*?<td>(\d*?)</td>\s*?<td>(.*?)</td>\s*?<td>(.*?)</td>.*?<td>(.*?)</td>.*?<td>([0-9.]*?)</td>.*?<td>([0-9.]*?)万元</td>.*?<td class="left">(.*?)</td>.*?<td>(.*?)</td>.*?<td class="r"><a href="(.*?)" target="_blank">.*?</a></td>.*?</tr>',re.I|re.S)
-    items = re.findall(pattern, content)
+    items = re.findall(pattern, r.text)
     for item in items:
-        cols=('id','district','xiaoqu','huxing','mianji','jiaqian','jiegou','date','url')
+        cols=('id','district','xiaoqu','huxing','mianji','jiaqian','jigou','date','url')
         data=dict(zip(cols,item))
-        #id,district,xiaoqu,huxing,mianji,jiaqian,jigou,riqi,lianjie=item
-        #with open(os.path.join(_DIR,'1.csv'),'a') as ff:
-        #    ff.write(",".join(item)+"\n")
+        data['url']='http://210.75.213.188/shh/portal/bjjs2016/'+data['url'] 
+        data['jigou']= data['jigou'].replace('&nbsp;','')
         try:
             conn.insert('fang', **data)
-        except Exception as e:
-            print(e)
+        except IntegrityError as e:
+            print("dup",e)
+	    try_num+=1
+            if try_num >3:
+                exit() 
+
+       
         
-    break
+#    break
  
  
