@@ -28,7 +28,7 @@ PAYLOAD = {"district_id":'', "plot":'', "sell_money_from":"", "sell_money_to":""
 
 PAGE_S=1
 PAGE_E=4000+1
-try_num = 7
+try_num = 0
 _DIR=os.path.dirname(os.path.realpath(__file__))
 
 
@@ -82,7 +82,7 @@ for page in range(PAGE_S,PAGE_E):
         except IntegrityError as e:
             print("dup",e)
 	    try_num+=1
-            if try_num >3:
+            if try_num >7:
                 exit() 
 
        
